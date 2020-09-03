@@ -44,5 +44,7 @@ export default {
       },
     },
   },
-  build: {},
+  build: {
+    transpile: ['OrbitControls.js'],
+  },
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 class SceneInit {
   constructor({ rootEl }) {
@@ -20,6 +21,7 @@ class SceneInit {
     this.initLights()
     this.initCamera()
     this.initRenderer()
+    this.initOrbitControls()
     this.buildSceneGeometry()
 
     this.root.appendChild(this.canvas)
@@ -57,12 +59,25 @@ class SceneInit {
     this.canvas = this.renderer.domElement
   }
 
+  initOrbitControls() {
+    this.orbitControls = new OrbitControls(this.camera, this.canvas)
+
+    this.orbitControls.maxPolarAngle = Math.PI * 0.45
+
+    this.orbitControls.enableDamping = true
+    this.orbitControls.dampingFactor = 0.05
+    this.orbitControls.screenSpacePanning = false
+
+    this.orbitControls.maxDistance = 15
+    this.orbitControls.minDistance = 3
+
+    this.orbitControls.update()
+  }
+
   buildSceneGeometry() {
-    const geometry = new THREE.BoxGeometry(4, 2, 2)
+    const geometry = new THREE.BoxGeometry(2, 1, 1)
     const material = new THREE.MeshBasicMaterial({ color: '#00ff00' })
     const cube = new THREE.Mesh(geometry, material)
-    this.cube = cube
-    this.cube.position.set(0, 2.5, -10)
     this.scene.add(cube)
   }
 
@@ -73,8 +88,7 @@ class SceneInit {
   update() {
     requestAnimationFrame(() => this.update())
 
-    this.cube.rotation.x += 0.01
-    this.cube.rotation.y += 0.01
+    this.orbitControls.update()
 
     this.render()
   }
