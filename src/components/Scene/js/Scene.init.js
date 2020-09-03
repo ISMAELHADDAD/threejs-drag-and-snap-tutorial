@@ -1,5 +1,8 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { DragAcrossPlaneControls } from '@/three-lib/DragAcrossPlaneControls.js'
+
+const OBJECT_LAYER = 2
 
 class SceneInit {
   constructor({ rootEl }) {
@@ -10,6 +13,8 @@ class SceneInit {
     this.height = rootEl.clientHeight
 
     this.background = '#fefefe'
+
+    this.objects = []
 
     this.init()
     this.update()
@@ -22,6 +27,7 @@ class SceneInit {
     this.initCamera()
     this.initRenderer()
     this.initOrbitControls()
+    this.initDragControls()
     this.buildSceneGeometry()
 
     this.root.appendChild(this.canvas)
@@ -74,11 +80,53 @@ class SceneInit {
     this.orbitControls.update()
   }
 
+  initDragControls() {
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0))
+    this.dragControl = new DragAcrossPlaneControls(
+      this.objects,
+      this.camera,
+      this.canvas,
+      plane,
+      OBJECT_LAYER
+    )
+    this.dragControl.addEventListener('dragstart', this.onDragStart)
+    this.dragControl.addEventListener('dragend', this.onDragEnd)
+  }
+
+  onDragStart = (event) => {
+    this.orbitControls.enabled = false
+    event.object.children[0].material.emissive.set('#444400')
+    this.selectedDraggableObject = event.object
+    document.addEventListener('keydown', this.onKeyDown, false)
+  }
+
+  onDragEnd = (event) => {
+    this.orbitControls.enabled = true
+    event.object.children[0].material.emissive.set('#000000')
+    document.removeEventListener('keydown', this.onKeyDown, false)
+    this.selectedDraggableObject = undefined
+  }
+
+  onKeyDown = (event) => {
+    // On keypress: 'R'
+    if (event.keyCode === 82) {
+      this.rotateObject(this.selectedDraggableObject)
+    }
+  }
+
+  rotateObject(object) {
+    object.rotation.y += Math.PI * 0.5
+  }
+
   buildSceneGeometry() {
     const geometry = new THREE.BoxGeometry(2, 1, 1)
-    const material = new THREE.MeshBasicMaterial({ color: '#00ff00' })
+    const material = new THREE.MeshLambertMaterial({ color: '#00ff00' })
     const cube = new THREE.Mesh(geometry, material)
-    this.scene.add(cube)
+    cube.layers.enable(OBJECT_LAYER)
+    const group = new THREE.Group()
+    group.add(cube)
+    this.objects.push(group)
+    this.scene.add(group)
   }
 
   render() {

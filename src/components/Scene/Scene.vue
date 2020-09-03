@@ -7,7 +7,6 @@ import SceneInit from './js/Scene.init'
 export default {
   mounted() {
     this.scene = SceneInit({ rootEl: this.$refs.container })
-    console.log(this.scene)
   },
 }
 </script>
