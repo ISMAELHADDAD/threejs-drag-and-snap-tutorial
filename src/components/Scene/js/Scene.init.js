@@ -16,6 +16,8 @@ class SceneInit {
 
     this.objects = []
 
+    this.isAddObjectMode = false
+
     this.init()
     this.update()
     this.bindEvents()
@@ -28,6 +30,7 @@ class SceneInit {
     this.initRenderer()
     this.initOrbitControls()
     this.initDragControls()
+    this.initAddObjectModeRaycaster()
     this.buildSceneGeometry()
 
     this.root.appendChild(this.canvas)
@@ -118,15 +121,75 @@ class SceneInit {
     object.rotation.y += Math.PI * 0.5
   }
 
+  initAddObjectModeRaycaster() {
+    this.raycaster = new THREE.Raycaster()
+    this.mouse = new THREE.Vector2()
+  }
+
   buildSceneGeometry() {
-    const geometry = new THREE.BoxGeometry(2, 1, 1)
+    this.buildPlane()
+    this.buildMarker()
+  }
+
+  buildPlane() {
+    const planeGeometry = new THREE.PlaneBufferGeometry(150, 150)
+    const planeMaterial = new THREE.MeshLambertMaterial({
+      color: '#eee',
+    })
+    this.plane = new THREE.Mesh(planeGeometry, planeMaterial)
+    this.plane.rotation.x -= Math.PI * 0.5
+    this.scene.add(this.plane)
+  }
+
+  buildMarker() {
+    this.marker = new THREE.Object3D()
+
+    const geometryTorus = new THREE.TorusBufferGeometry(0.1, 0.02, 2, 100)
+    const materialTorus = new THREE.MeshBasicMaterial({ color: '#5b3cc4' })
+    const torus = new THREE.Mesh(geometryTorus, materialTorus)
+    torus.rotation.x -= Math.PI * 0.5
+    torus.position.y += 0.01
+    this.marker.add(torus)
+
+    const geometryCircle = new THREE.CircleBufferGeometry(0.08, 32)
+    const materialCircle = new THREE.MeshBasicMaterial({
+      color: '#ffffff',
+      transparent: true,
+      opacity: 0.5,
+    })
+    const circle = new THREE.Mesh(geometryCircle, materialCircle)
+    circle.rotation.x -= Math.PI * 0.5
+    circle.position.y += 0.01
+    this.marker.add(circle)
+
+    this.scene.add(this.marker)
+  }
+
+  instantiateObject() {
+    if (!this.isAddObjectMode) return
+
+    const geometry = new THREE.BoxGeometry(1, 0.5, 0.5)
     const material = new THREE.MeshLambertMaterial({ color: '#00ff00' })
     const cube = new THREE.Mesh(geometry, material)
     cube.layers.enable(OBJECT_LAYER)
-    const group = new THREE.Group()
-    group.add(cube)
-    this.objects.push(group)
-    this.scene.add(group)
+    const object = new THREE.Object3D()
+    object.add(cube)
+    object.position.copy(this.marker.position)
+    object.position.y += 0.25
+
+    this.scene.add(object)
+    this.objects.push(object)
+  }
+
+  planePointer() {
+    this.raycaster.setFromCamera(this.mouse, this.camera)
+    const intersects = this.raycaster.intersectObjects([this.plane], true)
+    if (intersects.length > 0) {
+      this.marker.visible = true
+      this.marker.position.copy(intersects[0].point)
+    } else {
+      this.marker.visible = false
+    }
   }
 
   render() {
@@ -137,6 +200,14 @@ class SceneInit {
     requestAnimationFrame(() => this.update())
 
     this.orbitControls.update()
+
+    if (this.isAddObjectMode) {
+      this.planePointer()
+      this.dragControl.enabled = false
+    } else {
+      this.marker.visible = false
+      this.dragControl.enabled = true
+    }
 
     this.render()
   }
@@ -153,8 +224,21 @@ class SceneInit {
     this.camera.updateProjectionMatrix()
   }
 
+  onDocumentMouseMove = (event) => {
+    event.preventDefault()
+    this.mouse.x = (event.clientX / this.width) * 2 - 1
+    this.mouse.y = -(event.clientY / this.height) * 2 + 1
+  }
+
+  onDocumentMouseDown = (event) => {
+    if (event.target.localName === 'canvas' && event.button === 0)
+      this.instantiateObject()
+  }
+
   bindEvents() {
     window.addEventListener('resize', this.onResize)
+    this.canvas.addEventListener('mousemove', this.onDocumentMouseMove, false)
+    this.canvas.addEventListener('mousedown', this.onDocumentMouseDown, false)
   }
 }
 
