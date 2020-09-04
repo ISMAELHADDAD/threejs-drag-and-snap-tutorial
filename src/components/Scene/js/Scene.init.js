@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { DragAcrossPlaneControls } from '@/three-lib/DragAcrossPlaneControls.js'
 
 const OBJECT_LAYER = 2
+const CONN_POINTS_LAYER = 3
 
 class SceneInit {
   constructor({ rootEl }) {
@@ -97,6 +98,7 @@ class SceneInit {
   }
 
   onDragStart = (event) => {
+    this.camera.layers.enable(CONN_POINTS_LAYER)
     this.orbitControls.enabled = false
     event.object.children[0].material.emissive.set('#444400')
     this.selectedDraggableObject = event.object
@@ -104,6 +106,8 @@ class SceneInit {
   }
 
   onDragEnd = (event) => {
+    this.camera.layers.set(0)
+    this.snapObjects()
     this.orbitControls.enabled = true
     event.object.children[0].material.emissive.set('#000000')
     document.removeEventListener('keydown', this.onKeyDown, false)
@@ -119,6 +123,40 @@ class SceneInit {
 
   rotateObject(object) {
     object.rotation.y += Math.PI * 0.5
+  }
+
+  snapObjects() {
+    const selectedObjectPoints = this.selectedDraggableObject.children[0].children.map(
+      (connPoint) => connPoint
+    )
+    this.objects
+      .filter((object) => object.uuid !== this.selectedDraggableObject.uuid)
+      .forEach((object) => {
+        object.children[0].children.forEach((connPoint) => {
+          selectedObjectPoints.forEach((sConnPoint) => {
+            const s = new THREE.Vector3()
+            const d = new THREE.Vector3()
+            connPoint.getWorldPosition(d)
+            sConnPoint.getWorldPosition(s)
+            if (s.distanceTo(d) < 0.2) {
+              // Position difference between connection points in WORLD coords
+              // Move object that difference
+              const differenceWorld = new THREE.Vector3().subVectors(d, s)
+              const objectPosWorld = new THREE.Vector3()
+              this.selectedDraggableObject.getWorldPosition(objectPosWorld)
+              const moveWorld = new THREE.Vector3().addVectors(
+                objectPosWorld,
+                differenceWorld
+              )
+              this.selectedDraggableObject.position.set(
+                moveWorld.x,
+                moveWorld.y,
+                moveWorld.z
+              )
+            }
+          })
+        })
+      })
   }
 
   initAddObjectModeRaycaster() {
@@ -169,13 +207,30 @@ class SceneInit {
     if (!this.isAddObjectMode) return
 
     const geometry = new THREE.BoxGeometry(1, 0.5, 0.5)
-    const material = new THREE.MeshLambertMaterial({ color: '#00ff00' })
+    const material = new THREE.MeshLambertMaterial({
+      color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+    })
     const cube = new THREE.Mesh(geometry, material)
     cube.layers.enable(OBJECT_LAYER)
     const object = new THREE.Object3D()
     object.add(cube)
     object.position.copy(this.marker.position)
     object.position.y += 0.25
+
+    // Generate connecting points
+    const connectionPoints = [
+      { x: -0.5, y: 0, z: 0 },
+      { x: 0.5, y: 0, z: 0 },
+      { x: 0, y: 0, z: 0.25 },
+    ]
+    connectionPoints.forEach((point) => {
+      const sphereGeometry = new THREE.SphereBufferGeometry(0.1)
+      const sphereMaterial = new THREE.MeshBasicMaterial({ color: '#ff0000' })
+      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial)
+      sphere.position.set(point.x, point.y, point.z)
+      sphere.layers.set(CONN_POINTS_LAYER)
+      object.children[0].add(sphere)
+    })
 
     this.scene.add(object)
     this.objects.push(object)

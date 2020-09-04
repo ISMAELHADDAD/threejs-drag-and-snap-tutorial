@@ -6,7 +6,7 @@
           <v-btn
             outlined
             fab
-            :color="isAddObjectMode ? 'red' : 'mdi-plus'"
+            :color="isAddObjectMode ? 'red' : ''"
             v-on="on"
             @click="toggleAddObjectMode()"
           >
